@@ -1,39 +1,39 @@
 # Session Manager Implementation
 
-Ein Session Manager zur persistenten Speicherung und Verwaltung von Konversationen (aus qv-ollama-sdk) in einer SQLite-Datenbank. Ziel ist eine einfache, effiziente und minimalistische Lösung.
+A session manager for persistent storage and management of conversations (from qv-ollama-sdk) in an SQLite database. The goal is a simple, efficient, and minimalist solution.
 
 ## Completed Tasks
 
-- [x] Analyse der Anforderungen und Abgleich mit bestehendem Code (qv-ollama-sdk, qv-ollama-simple-ui)
-- [x] Entwurf des Datenmodells für SQLite (Konversationen, Nachrichten, Metadaten)
-- [x] Implementierung der SessionManager-Klasse (save, load, list, delete, search)
-- [x] Integration von Zeit-/ID-Suche und Wiederaufnahme-Funktionalität
-- [x] Testfälle für die wichtigsten Funktionen
-- [x] Ergänze Conversation und Message um Methoden zur vollständigen Serialisierung/Deserialisierung für die Datenbankspeicherung (z.B. to_db_dict, from_db_dict)
-- [x] Erstelle ein praktisches Demo/Beispiel für die Nutzung mit qv-ollama-sdk
-- [x] README.md mit Installationsanleitung und Verwendungsbeispielen
+- [x] Analysis of requirements and comparison with existing code (qv-ollama-sdk, qv-ollama-simple-ui)
+- [x] Design of the data model for SQLite (conversations, messages, metadata)
+- [x] Implementation of the SessionManager class (save, load, list, delete, search)
+- [x] Integration of time/ID search and resume functionality
+- [x] Test cases for the most important functions
+- [x] Extend Conversation and Message with methods for full serialization/deserialization for database storage (e.g. to_db_dict, from_db_dict)
+- [x] Create a practical demo/example for usage with qv-ollama-sdk
+- [x] README.md with installation instructions and usage examples
 
 ## In Progress Tasks
 
-- [ ] README.md mit Installationsanleitung und Verwendungsbeispielen
+- [ ] README.md with installation instructions and usage examples
 
 ## Future Tasks
 
-- [ ] Erweiterung um weitere Such-/Filterfunktionen
-- [ ] Optionale Verschlüsselung der gespeicherten Daten
-- [ ] Export/Import von Konversationen (z.B. als JSON)
+- [ ] Extension with additional search/filter functions
+- [ ] Optional encryption of stored data
+- [ ] Export/import of conversations (e.g. as JSON)
 
 ## Implementation Plan
 
-- Das Datenmodell orientiert sich an den Conversation- und Message-Objekten aus qv-ollama-sdk.
-- Nachrichten werden einzeln in der Datenbank abgelegt, um eine flexible Anzeige und Suche zu ermöglichen (analog zur UI-Logik in qv-ollama-simple-ui).
-- Die SessionManager-Klasse kapselt alle Datenbankoperationen und bietet Methoden zum Speichern, Laden, Auflisten, Suchen und Löschen von Konversationen.
-- Die Implementierung nutzt ausschließlich Python-Standardbibliothek (sqlite3).
-- Fokus auf Klarheit, Effizienz und Erweiterbarkeit.
+- The data model is based on the Conversation and Message objects from qv-ollama-sdk.
+- Messages are stored individually in the database to allow flexible display and search (analogous to the UI logic in qv-ollama-simple-ui).
+- The SessionManager class encapsulates all database operations and provides methods for saving, loading, listing, searching, and deleting conversations.
+- The implementation uses only the Python standard library (sqlite3).
+- Focus on clarity, efficiency, and extensibility.
 
 ### Relevant Files
 
-- session_manager.py - Enthält die SessionManager-Klasse und das Datenbankmodell. (✅)
-- tests/test_session_manager.py - Testfälle für die SessionManager-Funktionen. (✅)
-- examples/basic_usage.py - Vollständiges Demo der SessionManager-Funktionalität. (✅)
-- README.md - Umfassende Dokumentation mit Installation, API-Docs und Beispielen. (✅) 
+- session_manager.py - Contains the SessionManager class and the database model. (✅)
+- tests/test_session_manager.py - Test cases for the SessionManager functions. (✅)
+- examples/basic_usage.py - Complete demo of the SessionManager functionality. (✅)
+- README.md - Comprehensive documentation with installation, API docs, and examples. (✅) 

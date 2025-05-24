@@ -1,94 +1,98 @@
 # QV Session Manager
 
-Ein einfacher, effizienter Session Manager zur persistenten Speicherung und Verwaltung von Konversationen aus [qv-ollama-sdk](https://github.com/quantyverse/qv-ollama-sdk) in einer SQLite-Datenbank.
+A simple, efficient session manager for persistent storage and management of conversations from [qv-ollama-sdk](https://github.com/quantyverse/qv-ollama-sdk) in an SQLite database.
 
 ## ✨ Features
 
-- 💾 **Persistente Speicherung** von Conversations und Messages in SQLite
-- 🔍 **Volltextsuche** in Conversation-Inhalten und Titeln
-- ⏰ **Zeit-basierte Suche** nach Erstellungs-/Aktualisierungsdatum
-- 🔄 **Conversation-Wiederaufnahme** an beliebigen Punkten
-- 📋 **Conversation-Management** (Listen, Löschen, Laden)
-- 🎯 **Minimale Abhängigkeiten** (nur Python stdlib + qv-ollama-sdk)
-- 🚀 **Einfache API** mit klaren, intuitiven Methoden
+- 💾 **Persistent storage** of conversations and messages in SQLite
+- 🔍 **Full-text search** in conversation contents and titles
+- ⏰ **Time-based search** by creation/update date
+- 🔄 **Conversation resumption** at any point
+- 📋 **Conversation management** (list, delete, load)
+- 🎯 **Minimal dependencies** (only Python stdlib + qv-ollama-sdk)
+- 🚀 **Simple API** with clear, intuitive methods
 
 ## 🛠️ Installation
 
-### Aus PyPI (empfohlen)
+### From PyPI 
 ```bash
 pip install qv-session-manager
+
+or
+
+uv add qv-session-manager
 ```
 
-### Entwicklungsinstallation
+### Development installation
 ```bash
 git clone https://github.com/quantyverse/qv-session-manager.git
 cd qv-session-manager
 pip install -e .
 ```
 
-### Abhängigkeiten
-- Python 3.8+
+### Dependencies
+- Python 3.10+
 - qv-ollama-sdk
 
-## 🚀 Schnellstart
+## 🚀 Quickstart
 
 ```python
 from qv_session_manager import SessionManager
 from qv_ollama_sdk.domain.models import Conversation
 
-# SessionManager initialisieren
+# Initialize SessionManager
 mgr = SessionManager(db_path="my_sessions.db")
 
-# Neue Conversation erstellen
-conv = Conversation(title="Python Hilfe", model_name="llama3")
-conv.add_user_message("Erkläre mir Python-Listen!")
-conv.add_assistant_message("Listen sind geordnete, veränderbare Sammlungen...")
+# Create new conversation
+conv = Conversation(title="Python Help", model_name="llama3")
+conv.add_user_message("Explain Python lists to me!")
+conv.add_assistant_message("Lists are ordered, mutable collections...")
 
-# Speichern
+# Save
 mgr.save_conversation(conv, conv.messages)
 
-# Laden
+# Load
 loaded = mgr.load_conversation(str(conv.id))
-print(f"Geladen: {loaded.title} mit {len(loaded.messages)} Messages")
+print(f"Loaded: {loaded.title} with {len(loaded.messages)} messages")
 
-# Suchen
-results = mgr.search_conversations("Listen")
-print(f"Gefunden: {len(results)} Conversations")
+# Search
+results = mgr.search_conversations("lists")
+print(f"Found: {len(results)} conversations")
 ```
 
-## 📚 API-Dokumentation
+## 📚 API Documentation
 
 ### SessionManager
 
-#### Initialisierung
+#### Initialization
 ```python
-SessionManager(db_path: str = "session_manager.sqlite3")
+SessionManager(db_path: str = "session_manager.db")
 ```
-- `db_path`: Pfad zur SQLite-Datenbankdatei
+- `db_path`: Path to the SQLite database file
 
-#### Methoden
+#### Methods
 
 ##### `save_conversation(conversation, messages)`
-Speichert eine Conversation und ihre Messages.
-- `conversation`: Conversation-Objekt (mit `to_db_dict()` Methode)
-- `messages`: Liste von Message-Objekten (mit `to_db_dict()` Methoden)
+Saves a conversation and its messages.
+- `conversation`: Conversation object (with `to_db_dict()` method)
+- `messages`: List of Message objects (with `to_db_dict()` methods)
 
 ```python
 mgr.save_conversation(conv, conv.messages)
 ```
 
 ##### `load_conversation(conversation_id: str) -> Conversation | None`
-Lädt eine Conversation mit allen Messages.
-- `conversation_id`: UUID der Conversation als String
-- **Rückgabe**: Conversation-Objekt oder None
+Loads a conversation with all messages.
+- `conversation_id`: UUID of the conversation as a string
+- **Returns**: Conversation object or None
 
 ```python
 conv = mgr.load_conversation("550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ##### `list_conversations() -> List[Dict[str, Any]]`
-Listet alle Conversations auf (ohne Messages).
-- **Rückgabe**: Liste von Conversation-Dicts mit Metadaten
+Lists all conversations (without messages).
+- **Returns**: List of conversation dicts with metadata
 
 ```python
 all_convs = mgr.list_conversations()
@@ -97,51 +101,51 @@ for conv in all_convs:
 ```
 
 ##### `search_conversations(query: str) -> List[Dict[str, Any]]`
-Volltextsuche in Titeln und Message-Inhalten.
-- `query`: Suchbegriff
-- **Rückgabe**: Liste gefundener Conversation-Dicts
+Full-text search in titles and message contents.
+- `query`: Search term
+- **Returns**: List of found conversation dicts
 
 ```python
 results = mgr.search_conversations("Python")
 ```
 
 ##### `search_by_time(start: str = None, end: str = None) -> List[Dict[str, Any]]`
-Zeit-basierte Suche nach Conversations.
-- `start`: Start-Datum (ISO-Format, z.B. "2025-01-20")
-- `end`: End-Datum (ISO-Format)
-- **Rückgabe**: Liste von Conversation-Dicts
+Time-based search for conversations.
+- `start`: Start date (ISO format, e.g. "2025-01-20")
+- `end`: End date (ISO format)
+- **Returns**: List of conversation dicts
 
 ```python
-# Conversations von heute
+# Conversations from today
 today = datetime.now().strftime("%Y-%m-%d")
 recent = mgr.search_by_time(start=today)
 
-# Conversations aus einem Zeitraum
+# Conversations from a period
 results = mgr.search_by_time(start="2025-01-01", end="2025-01-31")
 ```
 
 ##### `resume_conversation(conversation_id: str) -> Dict[str, Any] | None`
-Bereitet Conversation-Wiederaufnahme vor.
-- `conversation_id`: UUID der Conversation
-- **Rückgabe**: Dict mit `conversation` und `last_message`
+Prepares conversation resumption.
+- `conversation_id`: UUID of the conversation
+- **Returns**: Dict with `conversation` and `last_message`
 
 ```python
 resumed = mgr.resume_conversation(str(conv.id))
 last_msg = resumed["last_message"]
-print(f"Letzte Nachricht: {last_msg['content']}")
+print(f"Last message: {last_msg['content']}")
 ```
 
 ##### `delete_conversation(conversation_id: str)`
-Löscht eine Conversation und alle zugehörigen Messages.
-- `conversation_id`: UUID der Conversation
+Deletes a conversation and all associated messages.
+- `conversation_id`: UUID of the conversation
 
 ```python
 mgr.delete_conversation(str(conv.id))
 ```
 
-## 💡 Erweiterte Beispiele
+## 💡 Advanced Examples
 
-### Conversation-Management mit Metadaten
+### Conversation management with metadata
 
 ```python
 from datetime import datetime
@@ -150,7 +154,7 @@ from qv_ollama_sdk.domain.models import Conversation
 
 mgr = SessionManager()
 
-# Conversation mit Metadaten
+# Conversation with metadata
 conv = Conversation(
     title="JavaScript Tutorial",
     model_name="llama3",
@@ -161,65 +165,65 @@ conv = Conversation(
     }
 )
 
-# Messages hinzufügen
-conv.add_system_message("Du bist ein erfahrener Web-Entwickler.")
-conv.add_user_message("Erkläre mir Closures in JavaScript.")
+# Add messages
+conv.add_system_message("You are an experienced web developer.")
+conv.add_user_message("Explain closures in JavaScript.")
 
-# Speichern
+# Save
 mgr.save_conversation(conv, conv.messages)
 
-# Nach Topic suchen
+# Search by topic
 web_convs = [c for c in mgr.list_conversations() 
              if c.get('metadata', {}).get('topic') == 'web-development']
 ```
 
-### Batch-Operationen
+### Batch operations
 
 ```python
-# Alle Conversations eines Tages löschen
+# Delete all conversations from a specific day
 target_date = "2025-01-20"
 old_convs = mgr.search_by_time(start=target_date, end=target_date)
 
 for conv in old_convs:
     mgr.delete_conversation(conv['id'])
-    print(f"Gelöscht: {conv['title']}")
+    print(f"Deleted: {conv['title']}")
 ```
 
-### Conversation-Fortsetzung
+### Conversation continuation
 
 ```python
-# Bestehende Conversation laden und erweitern
+# Load and extend an existing conversation
 conv = mgr.load_conversation("existing-conversation-id")
 
 if conv:
-    # Neue Messages hinzufügen
-    conv.add_user_message("Kannst du das nochmal erklären?")
-    conv.add_assistant_message("Gerne! Lass mich das anders formulieren...")
+    # Add new messages
+    conv.add_user_message("Can you explain that again?")
+    conv.add_assistant_message("Sure! Let me rephrase that...")
     
-    # Aktualisierte Version speichern
+    # Save updated version
     mgr.save_conversation(conv, conv.messages)
 ```
 
-## 🧪 Entwicklung & Testing
+## 🧪 Development & Testing
 
-### Tests ausführen
+### Run tests
 ```bash
-# Alle Tests
+# All tests
 pytest
 
-# Spezifischer Test
+# Specific test
 pytest tests/test_session_manager.py
 
-# Mit Ausgabe
+# With output
 pytest -v -s
 ```
 
-### Demo ausführen
+### Run demo
 ```bash
 python examples/basic_usage.py
 ```
 
-### Projektstruktur
+### Project structure
 ```
 qv-session-manager/
 ├── src/qv_session_manager/
@@ -233,91 +237,84 @@ qv-session-manager/
 └── pyproject.toml
 ```
 
-## 🗄️ Datenbankschema
+## 🗄️ Database Schema
 
-Die SQLite-Datenbank verwendet folgendes Schema:
+The SQLite database uses the following schema:
 
 ```sql
--- Conversations-Tabelle
+-- Conversations table
 CREATE TABLE conversations (
     id TEXT PRIMARY KEY,           -- UUID
-    title TEXT,                    -- Conversation-Titel
-    created_at TEXT,              -- ISO-Timestamp
-    updated_at TEXT,              -- ISO-Timestamp  
-    metadata TEXT                 -- JSON-Metadaten
+    title TEXT,                    -- Conversation title
+    created_at TEXT,              -- ISO timestamp
+    updated_at TEXT,              -- ISO timestamp  
+    metadata TEXT                 -- JSON metadata
 );
 
--- Messages-Tabelle
+-- Messages table
 CREATE TABLE messages (
     id TEXT PRIMARY KEY,          -- UUID
-    conversation_id TEXT,         -- Referenz zu conversations.id
+    conversation_id TEXT,         -- Reference to conversations.id
     role TEXT,                    -- "system", "user", "assistant"
-    content TEXT,                 -- Message-Inhalt
-    created_at TEXT,             -- ISO-Timestamp
-    metadata TEXT,               -- JSON-Metadaten
+    content TEXT,                 -- Message content
+    created_at TEXT,             -- ISO timestamp
+    metadata TEXT,               -- JSON metadata
     FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
 ```
 
-## 🤝 Integration mit qv-ollama-sdk
+## 🤝 Integration with qv-ollama-sdk
 
 ```python
 from qv_ollama_sdk.client import OllamaClient
 from qv_session_manager import SessionManager
 
-# Clients initialisieren
+# Initialize clients
 ollama = OllamaClient()
 session_mgr = SessionManager()
 
-# Neue Conversation
-conv = ollama.create_conversation(model="llama3")
+# New conversation
+conv = ollama.create_conversation(model="gemma3:1b")
 conv.title = "Code Review Session"
 
-# Mit Ollama chatten
-response = ollama.chat(conv, "Erkläre mir Clean Code Prinzipien")
+# Chat with Ollama
+response = ollama.chat(conv, "Explain Clean Code principles to me")
 print(response.content)
 
-# Session persistent speichern
+# Persist session
 session_mgr.save_conversation(conv, conv.messages)
 
-# Später: Session wieder laden und fortsetzen
+# Later: load and continue session
 loaded_conv = session_mgr.load_conversation(str(conv.id))
-next_response = ollama.chat(loaded_conv, "Welche Tools empfiehlst du?")
+next_response = ollama.chat(loaded_conv, "Which tools do you recommend?")
 ```
 
 ## 📋 Roadmap
 
-- [ ] Erweiterte Such-/Filterfunktionen (z.B. nach Metadaten)
-- [ ] Optionale Verschlüsselung der gespeicherten Daten
-- [ ] Export/Import von Conversations (JSON, CSV)
-- [ ] Performance-Optimierungen für große Datenmengen
-- [ ] Async-Support für high-performance Anwendungen
+- [ ] Advanced search/filter functions (e.g. by metadata)
+- [ ] Optional encryption of stored data
+- [ ] Export/import of conversations (JSON, CSV)
+- [ ] Performance optimizations for large datasets
+- [ ] Async support for high-performance applications
 
-## 🐛 Fehlerbehandlung
+## 🐛 Error Handling
 
 ```python
 try:
     conv = mgr.load_conversation("invalid-id")
     if conv is None:
-        print("Conversation nicht gefunden")
+        print("Conversation not found")
 except Exception as e:
-    print(f"Fehler beim Laden: {e}")
+    print(f"Error loading: {e}")
 ```
 
-## 📄 Lizenz
+## 📄 License
 
-MIT License - siehe [LICENSE](LICENSE) für Details.
+MIT License - see [LICENSE](LICENSE) for details.
 
-## 🚀 Beitragen
-
-1. Fork des Repositories
-2. Feature-Branch erstellen (`git checkout -b feature/amazing-feature`)
-3. Änderungen committen (`git commit -m 'Add amazing feature'`)
-4. Branch pushen (`git push origin feature/amazing-feature`)
-5. Pull Request erstellen
 
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/quantyverse/qv-session-manager/issues)
-- **Dokumentation**: Diese README
-- **Beispiele**: Siehe `examples/` Verzeichnis
+- **Documentation**: This README
+- **Examples**: See the `examples/` directory
