@@ -12,6 +12,7 @@ A session manager for persistent storage and management of conversations (from q
 - [x] Extend Conversation and Message with methods for full serialization/deserialization for database storage (e.g. to_db_dict, from_db_dict)
 - [x] Create a practical demo/example for usage with qv-ollama-sdk
 - [x] README.md with installation instructions and usage examples
+- [x] Implement backward compatibility for database schema migration
 
 ## In Progress Tasks
 

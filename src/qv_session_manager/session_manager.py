@@ -8,6 +8,7 @@ DB_SCHEMA = """
 CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
     title TEXT,
+    model_name TEXT,
     created_at TEXT,
     updated_at TEXT,
     metadata TEXT
@@ -32,6 +33,26 @@ class SessionManager:
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript(DB_SCHEMA)
+            # Check if model_name column exists, add it if missing (backward compatibility)
+            self._migrate_schema(conn)
+    
+    def _migrate_schema(self, conn):
+        """Migrate database schema for backward compatibility."""
+        cursor = conn.cursor()
+        
+        # Check if model_name column exists in conversations table
+        cursor.execute("PRAGMA table_info(conversations)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if "model_name" not in columns:
+            print("⚠️  Migrating database schema: Adding model_name column...")
+            try:
+                cursor.execute("ALTER TABLE conversations ADD COLUMN model_name TEXT DEFAULT 'llama3'")
+                conn.commit()
+                print("✅ Migration completed successfully!")
+            except Exception as e:
+                print(f"❌ Migration failed: {e}")
+                # Continue anyway - the app will work with fallback values
 
     def save_conversation(self, conversation, messages):
         """Saves a Conversation and its Messages to the DB. conversation/messages are now objects with .to_db_dict()."""
@@ -40,12 +61,13 @@ class SessionManager:
             conv_dict = conversation.to_db_dict()
             c.execute(
                 """
-                INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, metadata)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO conversations (id, title, model_name, created_at, updated_at, metadata)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     conv_dict["id"],
                     conv_dict["title"],
+                    conv_dict["model_name"],
                     conv_dict["created_at"],
                     conv_dict["updated_at"],
                     json.dumps(conv_dict["metadata"]),
@@ -73,21 +95,45 @@ class SessionManager:
         """Loads a Conversation and its Messages from the DB and returns Conversation object."""
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
-            c.execute(
-                "SELECT id, title, created_at, updated_at, metadata FROM conversations WHERE id = ?",
-                (conversation_id,),
-            )
-            row = c.fetchone()
-            if not row:
-                return None
-            conv_dict = {
-                "id": row[0],
-                "title": row[1],
-                "created_at": row[2],
-                "updated_at": row[3],
-                "metadata": json.loads(row[4]) if row[4] else {},
-                "model_name": "llama3",  # TODO: add to DB schema
-            }
+            
+            # Check if model_name column exists for backward compatibility
+            c.execute("PRAGMA table_info(conversations)")
+            columns = [column[1] for column in c.fetchall()]
+            has_model_name = "model_name" in columns
+            
+            if has_model_name:
+                c.execute(
+                    "SELECT id, title, model_name, created_at, updated_at, metadata FROM conversations WHERE id = ?",
+                    (conversation_id,),
+                )
+                row = c.fetchone()
+                if not row:
+                    return None
+                conv_dict = {
+                    "id": row[0],
+                    "title": row[1],
+                    "model_name": row[2],
+                    "created_at": row[3],
+                    "updated_at": row[4],
+                    "metadata": json.loads(row[5]) if row[5] else {},
+                }
+            else:
+                # Fallback for old schema without model_name
+                c.execute(
+                    "SELECT id, title, created_at, updated_at, metadata FROM conversations WHERE id = ?",
+                    (conversation_id,),
+                )
+                row = c.fetchone()
+                if not row:
+                    return None
+                conv_dict = {
+                    "id": row[0],
+                    "title": row[1],
+                    "model_name": "llama3",  # Default fallback
+                    "created_at": row[2],
+                    "updated_at": row[3],
+                    "metadata": json.loads(row[4]) if row[4] else {},
+                }
             c.execute(
                 "SELECT id, role, content, created_at, metadata FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
                 (conversation_id,),
@@ -112,17 +158,39 @@ class SessionManager:
         """Lists all conversations (without messages)."""
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, title, created_at, updated_at, metadata FROM conversations ORDER BY updated_at DESC")
-            return [
-                {
-                    "id": row[0],
-                    "title": row[1],
-                    "created_at": row[2],
-                    "updated_at": row[3],
-                    "metadata": json.loads(row[4]) if row[4] else {},
-                }
-                for row in c.fetchall()
-            ]
+            
+            # Check if model_name column exists for backward compatibility
+            c.execute("PRAGMA table_info(conversations)")
+            columns = [column[1] for column in c.fetchall()]
+            has_model_name = "model_name" in columns
+            
+            if has_model_name:
+                c.execute("SELECT id, title, model_name, created_at, updated_at, metadata FROM conversations ORDER BY updated_at DESC")
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": row[2],
+                        "created_at": row[3],
+                        "updated_at": row[4],
+                        "metadata": json.loads(row[5]) if row[5] else {},
+                    }
+                    for row in c.fetchall()
+                ]
+            else:
+                # Fallback for old schema without model_name
+                c.execute("SELECT id, title, created_at, updated_at, metadata FROM conversations ORDER BY updated_at DESC")
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": "llama3",  # Default fallback
+                        "created_at": row[2],
+                        "updated_at": row[3],
+                        "metadata": json.loads(row[4]) if row[4] else {},
+                    }
+                    for row in c.fetchall()
+                ]
 
     def delete_conversation(self, conversation_id: str):
         """Deletes a conversation and all associated messages."""
@@ -135,45 +203,101 @@ class SessionManager:
         """Simple full-text search in titles and message content."""
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
-            c.execute(
-                "SELECT DISTINCT c.id, c.title, c.created_at, c.updated_at, c.metadata FROM conversations c LEFT JOIN messages m ON c.id = m.conversation_id WHERE c.title LIKE ? OR m.content LIKE ? ORDER BY c.updated_at DESC",
-                (f"%{query}%", f"%{query}%"),
-            )
-            return [
-                {
-                    "id": row[0],
-                    "title": row[1],
-                    "created_at": row[2],
-                    "updated_at": row[3],
-                    "metadata": json.loads(row[4]) if row[4] else {},
-                }
-                for row in c.fetchall()
-            ]
+            
+            # Check if model_name column exists for backward compatibility
+            c.execute("PRAGMA table_info(conversations)")
+            columns = [column[1] for column in c.fetchall()]
+            has_model_name = "model_name" in columns
+            
+            if has_model_name:
+                c.execute(
+                    "SELECT DISTINCT c.id, c.title, c.model_name, c.created_at, c.updated_at, c.metadata FROM conversations c LEFT JOIN messages m ON c.id = m.conversation_id WHERE c.title LIKE ? OR m.content LIKE ? ORDER BY c.updated_at DESC",
+                    (f"%{query}%", f"%{query}%"),
+                )
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": row[2],
+                        "created_at": row[3],
+                        "updated_at": row[4],
+                        "metadata": json.loads(row[5]) if row[5] else {},
+                    }
+                    for row in c.fetchall()
+                ]
+            else:
+                # Fallback for old schema without model_name
+                c.execute(
+                    "SELECT DISTINCT c.id, c.title, c.created_at, c.updated_at, c.metadata FROM conversations c LEFT JOIN messages m ON c.id = m.conversation_id WHERE c.title LIKE ? OR m.content LIKE ? ORDER BY c.updated_at DESC",
+                    (f"%{query}%", f"%{query}%"),
+                )
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": "llama3",  # Default fallback
+                        "created_at": row[2],
+                        "updated_at": row[3],
+                        "metadata": json.loads(row[4]) if row[4] else {},
+                    }
+                    for row in c.fetchall()
+                ]
 
     def search_by_time(self, start: Optional[str] = None, end: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search conversations by creation or update time period (ISO format)."""
-        query = "SELECT id, title, created_at, updated_at, metadata FROM conversations WHERE 1=1"
-        params = []
-        if start:
-            query += " AND updated_at >= ?"
-            params.append(start)
-        if end:
-            query += " AND updated_at <= ?"
-            params.append(end)
-        query += " ORDER BY updated_at DESC"
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
-            c.execute(query, params)
-            return [
-                {
-                    "id": row[0],
-                    "title": row[1],
-                    "created_at": row[2],
-                    "updated_at": row[3],
-                    "metadata": json.loads(row[4]) if row[4] else {},
-                }
-                for row in c.fetchall()
-            ]
+            
+            # Check if model_name column exists for backward compatibility
+            c.execute("PRAGMA table_info(conversations)")
+            columns = [column[1] for column in c.fetchall()]
+            has_model_name = "model_name" in columns
+            
+            if has_model_name:
+                query = "SELECT id, title, model_name, created_at, updated_at, metadata FROM conversations WHERE 1=1"
+                params = []
+                if start:
+                    query += " AND updated_at >= ?"
+                    params.append(start)
+                if end:
+                    query += " AND updated_at <= ?"
+                    params.append(end)
+                query += " ORDER BY updated_at DESC"
+                c.execute(query, params)
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": row[2],
+                        "created_at": row[3],
+                        "updated_at": row[4],
+                        "metadata": json.loads(row[5]) if row[5] else {},
+                    }
+                    for row in c.fetchall()
+                ]
+            else:
+                # Fallback for old schema without model_name
+                query = "SELECT id, title, created_at, updated_at, metadata FROM conversations WHERE 1=1"
+                params = []
+                if start:
+                    query += " AND updated_at >= ?"
+                    params.append(start)
+                if end:
+                    query += " AND updated_at <= ?"
+                    params.append(end)
+                query += " ORDER BY updated_at DESC"
+                c.execute(query, params)
+                return [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "model_name": "llama3",  # Default fallback
+                        "created_at": row[2],
+                        "updated_at": row[3],
+                        "metadata": json.loads(row[4]) if row[4] else {},
+                    }
+                    for row in c.fetchall()
+                ]
 
     def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Alias for load_conversation (compatibility/readability)."""

@@ -23,7 +23,7 @@ def main():
     # 2. Create new Conversation
     print("\n📝 Creating new conversation...")
     conv = Conversation(
-        model_name="llama3", 
+        model_name="gemma2:2b", 
         title="Python Learning Help",
         metadata={"topic": "programming", "level": "beginner"}
     )
@@ -59,6 +59,7 @@ def main():
     print("\n🔄 Load and continue conversation...")
     loaded_conv = mgr.load_conversation(str(conv.id))
     print(f"   Loaded: {loaded_conv.title}")
+    print(f"   Model: {loaded_conv.model_name}")
     print(f"   Messages: {len(loaded_conv.messages)}")
     
     # Continue conversation
